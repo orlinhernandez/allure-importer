@@ -4,6 +4,9 @@
 A tool for importing test cases from a CSV file into Allure TestOps.
 Available as a **web UI** (recommended, no terminal needed) or a **CLI** for power users.
 
+<img width="1229" height="704" alt="image" src="https://github.com/user-attachments/assets/23b54be9-ed9c-49cf-b9bf-875c3bd02422" />
+
+
 ---
 
 ## Before you start — one-time setup
