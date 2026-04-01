@@ -32,7 +32,7 @@ pip install requests python-dotenv pyyaml flask
 
 In the project folder, create a file named `env.env` with the following content:
 ```
-ALLURE_URL=https://your-allure-instance.com
+ALLURE_URL=https://hubstaff.testops.cloud
 ALLURE_TOKEN=your-api-token-here
 ```
 
