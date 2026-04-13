@@ -11,10 +11,6 @@ columns:
   precondition: Precondition
   scenario: scenario
   tag: tag
-custom_fields:
-- custom_field_id: -2
-  custom_field_name: Feature
-  id: 5162
-  name: TEST IMPORT FEATURE FOLDER
+custom_fields: []
 project:
-  id: 34
+  id: 0

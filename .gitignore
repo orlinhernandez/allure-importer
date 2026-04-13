@@ -1,5 +1,6 @@
 env.env
 *.env
+converted-origi.csv
 __pycache__/
 *.pyc
-converted.csv
+.DS_Store

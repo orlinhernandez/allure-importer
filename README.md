@@ -1,5 +1,5 @@
 # Allure TestOps Importer
-### Made with much love by Dzmitry Mialeshka & Orlin Hernandez @ Hubstaff — Enjoy!
+### Made with much love by Dzmitry Mialeshka & Orlin Hernandez — Enjoy!
 
 A tool for importing test cases from a CSV file into Allure TestOps.
 Available as a **web UI** (recommended, no terminal needed) or a **CLI** for power users.
@@ -35,7 +35,7 @@ pip install requests python-dotenv pyyaml flask
 
 In the project folder, create a file named `env.env` with the following content:
 ```
-ALLURE_URL=https://hubstaff.testops.cloud
+ALLURE_URL=https://allure.yourcompany.com
 ALLURE_TOKEN=your-api-token-here
 ```
 
