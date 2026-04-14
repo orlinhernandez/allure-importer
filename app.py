@@ -67,7 +67,7 @@ header h1{font-size:15px;font-weight:600;color:#f1f5f9;flex:1}
 .step-num.active{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff}
 .step-num.done{background:#0f2a1e;color:#4ade80}
 .card-head h2{font-size:13px;font-weight:600;color:#f1f5f9}
-.card-head .hint{margin-left:auto;font-size:11px;color:#475569}
+.card-head .hint{margin-left:auto;font-size:11px;color:#94a3b8}
 .card-body{padding:18px}
 
 /* ---- settings panel ---- */
@@ -97,7 +97,7 @@ header h1{font-size:15px;font-weight:600;color:#f1f5f9;flex:1}
 .drop-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
 .drop-zone .dz-icon{font-size:28px;margin-bottom:8px}
 .drop-zone p{color:#94a3b8;font-size:14px}
-.drop-zone small{color:#3f4568;font-size:12px;margin-top:5px;display:block}
+.drop-zone small{color:#94a3b8;font-size:12px;margin-top:5px;display:block}
 
 /* ---- folder form ---- */
 .folder-form{margin-top:16px;background:#13151f;border:1px solid #2d3148;border-radius:10px;padding:16px}
@@ -105,7 +105,7 @@ header h1{font-size:15px;font-weight:600;color:#f1f5f9;flex:1}
 .folder-grid{display:flex;gap:12px;flex-wrap:wrap}
 .folder-grid .fg{flex:1;min-width:180px}
 .folder-grid .fg.narrow{flex:0 0 110px}
-.folder-status{margin-top:10px;font-size:12px;color:#475569}
+.folder-status{margin-top:10px;font-size:12px;color:#94a3b8}
 .folder-status.set{color:#4ade80}
 
 /* ---- alerts ---- */
@@ -149,10 +149,12 @@ td{padding:9px 12px;vertical-align:top;color:#cbd5e1}
 .btn-dry:disabled{opacity:.35;cursor:not-allowed}
 .btn-ghost{background:#1e2035;color:#94a3b8;border:1px solid #2d3148}
 .btn-ghost:hover{background:#2d3148;color:#e2e8f0}
+.btn-danger{background:#200a0a;color:#f87171;border:1px solid #7f1d1d}
+.btn-danger:hover{background:#2d0f0f;border-color:#991b1b}
 .btn-sm{padding:6px 12px;font-size:11px}
 .btn-icon{padding:7px 10px;font-size:13px}
 .actions{display:flex;gap:8px;align-items:center;margin-top:14px;flex-wrap:wrap}
-.actions-note{font-size:11px;color:#475569}
+.actions-note{font-size:11px;color:#94a3b8}
 
 /* ---- dry label ---- */
 .dry-label{display:none;background:#0f1e2e;color:#7dd3fc;border:1px solid #1e3a5f;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;margin-left:6px}
@@ -184,6 +186,21 @@ td{padding:9px 12px;vertical-align:top;color:#cbd5e1}
 .conn-fail .conn-dot{background:#f87171}
 .conn-checking .conn-dot{background:#a78bfa;animation:pulse 1s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ---- quick-start guide ---- */
+.guide-steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.guide-step{background:#13151f;border:1px solid #2d3148;border-radius:9px;padding:16px}
+.guide-step-num{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-bottom:10px}
+.guide-step h3{font-size:12px;font-weight:600;color:#f1f5f9;margin-bottom:6px}
+.guide-step p{font-size:11px;color:#94a3b8;line-height:1.65}
+.guide-step a{color:#818cf8;text-decoration:none}.guide-step a:hover{text-decoration:underline}
+.guide-step strong{color:#e2e8f0}
+.guide-toggle{font-size:11px;color:#94a3b8;margin-left:auto;cursor:pointer;padding:4px 10px;border-radius:5px;border:1px solid #2d3148;background:#13151f}
+.guide-toggle:hover{color:#94a3b8;border-color:#3d4468}
+.setup-notice{display:none;align-items:center;gap:10px;padding:11px 16px;border-radius:8px;background:#1c1a0a;border:1px solid #713f12;color:#fbbf24;font-size:12px;margin-bottom:14px}
+.setup-notice.show{display:flex}
+.setup-notice button{margin-left:auto;padding:5px 14px;border-radius:6px;border:1px solid #92400e;background:#292110;color:#fbbf24;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap}
+.setup-notice button:hover{background:#3a2e16}
 </style>
 </head>
 <body>
@@ -216,7 +233,7 @@ td{padding:9px 12px;vertical-align:top;color:#cbd5e1}
       <div class="field-group">
         <label>API Token</label>
         <input class="field-input" id="cfg-token" type="password" placeholder="Paste your Allure API token"/>
-        <small style="font-size:11px;color:#3f4568;margin-top:4px">Profile -> API Tokens -> Generate new token</small>
+        <small style="font-size:11px;color:#94a3b8;margin-top:4px">Profile -> API Tokens -> Generate new token</small>
       </div>
       <div class="field-group">
         <label>Project ID</label>
@@ -228,8 +245,9 @@ td{padding:9px 12px;vertical-align:top;color:#cbd5e1}
         <button class="btn btn-primary" onclick="saveSettings()">Save</button>
       </div>
     </div>
-    <div class="settings-footer">
-      <small style="font-size:11px;color:#3f4568">Settings are saved to env.env and config.yml in your project folder</small>
+    <div class="settings-footer" style="justify-content:space-between;align-items:center">
+      <small style="font-size:11px;color:#94a3b8">Settings are saved to env.env and config.yml in your project folder</small>
+      <button class="btn btn-danger btn-sm" onclick="clearCredentials()">Clear credentials</button>
     </div>
   </div>
 </div>
@@ -239,13 +257,13 @@ td{padding:9px 12px;vertical-align:top;color:#cbd5e1}
   <div class="settings-box" style="max-width:600px">
     <div class="sh">
       <h2>Map your CSV columns</h2>
-      <small style="font-size:11px;color:#475569">Your CSV headers don't match the expected names. Map them below.</small>
+      <small style="font-size:11px;color:#94a3b8">Your CSV headers don't match the expected names. Map them below.</small>
     </div>
     <div class="sb" id="mapper-body" style="gap:10px">
       <!-- rows injected by JS -->
     </div>
     <div class="settings-footer" style="justify-content:space-between;align-items:center">
-      <small style="font-size:11px;color:#3f4568">Unmapped optional fields will be left blank</small>
+      <small style="font-size:11px;color:#94a3b8">Unmapped optional fields will be left blank</small>
       <div style="display:flex;gap:8px">
         <button class="btn btn-ghost" onclick="closeMapper()">Cancel</button>
         <button class="btn btn-primary" onclick="applyMapping()">Apply & Preview</button>
@@ -259,12 +277,12 @@ td{padding:9px 12px;vertical-align:top;color:#cbd5e1}
   <div class="settings-box" style="max-width:600px">
     <div class="sh">
       <h2>Map your CSV columns</h2>
-      <small style="font-size:11px;color:#64748b;margin-left:8px">Match your CSV headers to Allure fields</small>
+      <small style="font-size:11px;color:#94a3b8;margin-left:8px">Match your CSV headers to Allure fields</small>
     </div>
     <div class="sb" id="mapper-body" style="gap:10px;max-height:70vh;overflow-y:auto">
     </div>
     <div class="settings-footer" style="justify-content:space-between;align-items:center">
-      <small style="font-size:11px;color:#3f4568">Optional fields can be left unmapped</small>
+      <small style="font-size:11px;color:#94a3b8">Optional fields can be left unmapped</small>
       <div style="display:flex;gap:8px">
         <button class="btn btn-ghost" onclick="closeMapper()">Cancel</button>
         <button class="btn btn-primary" onclick="applyMapping()">Apply & Preview</button>
@@ -274,6 +292,42 @@ td{padding:9px 12px;vertical-align:top;color:#cbd5e1}
 </div>
 
 <div class="page">
+
+  <!-- Quick-start guide -->
+  <div class="card" id="card-guide">
+    <div class="card-head">
+      <h2>How to use</h2>
+      <button class="guide-toggle" onclick="toggleGuide()"><span id="guide-toggle-text">Hide guide</span></button>
+    </div>
+    <div class="card-body" id="guide-body">
+      <div class="setup-notice" id="setup-notice">
+        <span>Allure is not configured yet — enter your credentials before uploading a file.</span>
+        <button onclick="openSettings()">Open Settings</button>
+      </div>
+      <div class="guide-steps">
+        <div class="guide-step">
+          <div class="guide-step-num">1</div>
+          <h3>Configure Allure</h3>
+          <p>Click <strong>Settings</strong> (top right). Enter your <strong>Allure URL</strong>, <strong>API token</strong> (Profile → API Tokens → Generate), and <strong>Project ID</strong> (visible in the Allure URL). Hit <em>Test connection</em> to verify.</p>
+        </div>
+        <div class="guide-step">
+          <div class="guide-step-num">2</div>
+          <h3>Prepare your CSV</h3>
+          <p><a href="/template" download="test_cases_template.csv">Download the CSV template</a> and fill it out in Google Sheets or Excel, then export as CSV. Have your own format? Upload it — the tool will let you map columns on the fly.</p>
+        </div>
+        <div class="guide-step">
+          <div class="guide-step-num">3</div>
+          <h3>Upload &amp; review</h3>
+          <p>Drag your CSV onto the upload zone or click to browse. The tool parses the file and <strong>automatically checks Allure for duplicates</strong>. A preview table shows every test case and its status before anything is created.</p>
+        </div>
+        <div class="guide-step">
+          <div class="guide-step-num">4</div>
+          <h3>Import</h3>
+          <p>In the preview, <span style="color:#4ade80;font-weight:600">import</span> = new, <span style="color:#fbbf24;font-weight:600">skip</span> = already exists. Use <strong style="color:#7dd3fc">Dry Run</strong> to simulate without changes, then click <strong style="color:#a78bfa">Import to Allure</strong> when ready.</p>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Step 1: Upload + Folder -->
   <div class="card" id="card-upload">
@@ -286,8 +340,8 @@ td{padding:9px 12px;vertical-align:top;color:#cbd5e1}
       <div class="drop-zone" id="drop-zone">
         <input type="file" id="file-input" accept=".csv,.tsv"/>
         <div class="dz-icon">CSV</div>
-        <p>Drag & drop your CSV here, or click to browse</p>
-        <small>Comma or tab separated</small>
+        <p>Drag &amp; drop your CSV here, or click to browse</p>
+        <small>Comma or tab separated &mdash; any column names work, you can map them after upload</small>
       </div>
       <div class="alert alert-info" id="alert-parse">
         <span class="spin"></span><span>Parsing and checking for duplicates...</span>
@@ -307,6 +361,7 @@ td{padding:9px 12px;vertical-align:top;color:#cbd5e1}
           <div class="field-group fg narrow">
             <label>Feature ID</label>
             <input class="field-input" id="input-feature-id" placeholder="e.g. 5162"/>
+            <small style="font-size:11px;color:#94a3b8;margin-top:4px;display:block">Visible in the Allure URL when you open the folder (e.g. /tree/<em>5162</em>)</small>
           </div>
         </div>
         <div class="folder-grid" style="margin-top:10px">
@@ -396,6 +451,18 @@ function setConnStatus(type, label) {
   el.className = 'conn-status conn-' + type;
   el.querySelector('.conn-label').textContent = label;
   el.title = label;
+  const notice = document.getElementById('setup-notice');
+  if (notice) notice.classList.toggle('show', type === 'fail');
+}
+
+// ---- Guide ---------------------------------------------------------------
+function toggleGuide() {
+  const body = document.getElementById('guide-body');
+  const text = document.getElementById('guide-toggle-text');
+  const hidden = body.style.display === 'none';
+  body.style.display = hidden ? '' : 'none';
+  text.textContent   = hidden ? 'Hide guide' : 'Show guide';
+  localStorage.setItem('guide-hidden', hidden ? '0' : '1');
 }
 
 // ---- Column mapper -------------------------------------------------------
@@ -514,12 +581,34 @@ function saveSettings() {
   });
 }
 
+function clearCredentials() {
+  if (!confirm('This will erase your saved Allure URL and API token from env.env. Continue?')) return;
+  fetch('/settings/clear', {method:'POST'})
+    .then(r=>r.json())
+    .then(d => {
+      if (d.ok) {
+        document.getElementById('cfg-url').value   = '';
+        document.getElementById('cfg-token').value = '';
+        setAuthStatus('idle', 'Credentials cleared');
+        closeSettings();
+        checkConnection();
+      } else {
+        alert('Failed: ' + (d.error || 'unknown'));
+      }
+    });
+}
+
 // ---- Folder form ---------------------------------------------------------
 window.addEventListener('DOMContentLoaded', () => {
   checkConnection();
   loadConfigFolder();
   ['input-feature-name','input-feature-id','input-story-name','input-story-id']
     .forEach(id => document.getElementById(id).addEventListener('input', updateFolderStatus));
+  // Restore guide collapse state
+  if (localStorage.getItem('guide-hidden') === '1') {
+    document.getElementById('guide-body').style.display = 'none';
+    document.getElementById('guide-toggle-text').textContent = 'Show guide';
+  }
 });
 
 function loadConfigFolder() {
@@ -720,6 +809,7 @@ function markActive(n){ document.getElementById('num-'+n).className='step-num ac
 function unmark(n)   { document.getElementById('num-'+n).className='step-num'; }
 function esc(s)      { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 </script>
+<footer style="text-align:center;padding:20px;font-size:11px;color:#94a3b8">Made with love by Dzmitry &amp; Orlin</footer>
 </body>
 </html>"""
 
@@ -859,6 +949,19 @@ def settings_save():
             with open(cfg_path, "w", encoding="utf-8") as f:
                 yaml.dump(cfg, f, default_flow_style=False, allow_unicode=True)
 
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route("/settings/clear", methods=["POST"])
+def settings_clear():
+    try:
+        if os.path.exists(ENV_PATH):
+            set_key(ENV_PATH, "ALLURE_URL", "")
+            set_key(ENV_PATH, "ALLURE_TOKEN", "")
+        os.environ.pop("ALLURE_URL", None)
+        os.environ.pop("ALLURE_TOKEN", None)
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
