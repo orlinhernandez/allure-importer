@@ -1088,61 +1088,71 @@ def verify_folder():
         jwt  = safe_jwt(url, token)
         hdrs = get_headers(jwt)
 
-        def lookup_value(value_id):
-            """Resolve a custom field value by customFieldValueId using /api/rs/cfv.
-            The response is a nested tree: each node has children.content with more nodes."""
-            try:
-                r = req.get(
-                    f"{url}/api/rs/cfv",
-                    headers=hdrs,
-                    params={"projectId": pid, "v2": "true", "size": 2000},
-                    timeout=10,
-                )
-                if not r.ok:
-                    return None
-                data = r.json()
+        # Step 1: find which treeId uses Feature (-2) and Story (-3) fields
+        tree_for = {-2: None, -3: None}
+        r = req.get(f"{url}/api/tree",
+                    params={"projectId": pid, "size": 100},
+                    headers=hdrs, timeout=8)
+        if r.ok:
+            for tree in r.json().get("content", []):
+                for field in tree.get("fields", []):
+                    fid = field.get("id")
+                    if fid in tree_for and tree_for[fid] is None:
+                        tree_for[fid] = tree["id"]
 
-                def search(node):
-                    """Recursively search a node or list for customFieldValueId."""
-                    if isinstance(node, list):
-                        for item in node:
-                            found = search(item)
-                            if found:
-                                return found
-                    elif isinstance(node, dict):
-                        if str(node.get("customFieldValueId")) == str(value_id):
-                            return node.get("name")
-                        children = node.get("children", {})
-                        content  = (children.get("content", [])
-                                    if isinstance(children, dict) else children)
-                        for child in content:
-                            found = search(child)
-                            if found:
-                                return found
-                    return None
+        if not tree_for[-2]:
+            return jsonify({"error": "Could not find a Features tree in this project"}), 500
 
-                # Handle flat list, paginated {content:[...]}, or single root node
-                if isinstance(data, list):
-                    return search(data)
-                content = data.get("content")
-                return search(content if content is not None else data)
+        base = f"{url}/api/v2/project/{pid}/test-case/tree/tree-node"
+        common = {"deleted": "false", "size": 500, "page": 0}
 
-            except Exception:
-                pass
+        def find_node(cfv_id, tree_id, parent_id=None, depth=0):
+            """Walk the tree looking for a node whose customFieldValueId matches."""
+            if depth > 6:
+                return None
+            params = {**common, "treeId": tree_id}
+            if parent_id is not None:
+                params["parentNodeId"] = parent_id
+
+            r = req.get(base, params=params, headers=hdrs, timeout=10)
+            if not r.ok:
+                return None
+            data = r.json()
+
+            # With parentNodeId: response is a single node object {id, name,
+            # customFieldValueId, children:{content:[...]}}
+            if parent_id is not None and isinstance(data, dict) and "children" in data:
+                if str(data.get("customFieldValueId")) == str(cfv_id):
+                    return data.get("name")
+                for child in data.get("children", {}).get("content", []):
+                    if str(child.get("customFieldValueId")) == str(cfv_id):
+                        return child.get("name")
+                    found = find_node(cfv_id, tree_id, child["id"], depth + 1)
+                    if found:
+                        return found
+                return None
+
+            # Without parentNodeId: response is paginated {content:[root nodes]}
+            for node in data.get("content", []):
+                if str(node.get("customFieldValueId")) == str(cfv_id):
+                    return node.get("name")
+                found = find_node(cfv_id, tree_id, node["id"], depth + 1)
+                if found:
+                    return found
             return None
 
-        fname_actual = lookup_value(feature_id)
+        fname_actual = find_node(feature_id, tree_for[-2])
         if fname_actual is None:
             return jsonify({"found": False})
 
         result = {
-            "found":          True,
-            "feature_name":   fname_actual,
+            "found":           True,
+            "feature_name":    fname_actual,
             "feature_matches": not feature_name or fname_actual.lower() == feature_name,
         }
 
-        if story_id:
-            sname_actual = lookup_value(story_id)
+        if story_id and tree_for[-3]:
+            sname_actual = find_node(story_id, tree_for[-3])
             result["story_found"]   = sname_actual is not None
             result["story_name"]    = sname_actual
             result["story_matches"] = not story_name or (
