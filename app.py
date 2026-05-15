@@ -434,13 +434,23 @@ td{padding:9px 12px;vertical-align:top;color:#cbd5e1}
 let parsedRows   = [];
 let dupeSet      = new Set();
 
+// ---- localStorage credentials (works on read-only filesystems like Vercel) ---
+function localCreds() {
+  return {
+    allure_url:   localStorage.getItem('allure_url')        || '',
+    allure_token: localStorage.getItem('allure_token')      || '',
+    project_id:   localStorage.getItem('allure_project_id') || '',
+  };
+}
+
 // ---- Connection status ---------------------------------------------------
 function checkConnection() {
+  const c = localCreds();
   setConnStatus('checking', 'Checking...');
   fetch('/auth-test', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({url: '', token: '__saved__'})
+    body: JSON.stringify({url: c.allure_url, token: c.allure_token || '__saved__'})
   })
   .then(r => r.json())
   .then(r => setConnStatus(r.ok ? 'ok' : 'fail', r.ok ? 'Connected' : (r.error || 'Auth failed')))
@@ -519,7 +529,7 @@ function applyMapping() {
   document.getElementById('mapper-panel').classList.remove('open');
   show('alert-parse');
   fetch('/parse-with-mapping', {method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({rows: pendingRawRows, mapping})})
+    body: JSON.stringify({rows: pendingRawRows, mapping, ...localCreds()})})
   .then(r=>r.json())
   .then(data => {
     hide('alert-parse');
@@ -532,12 +542,19 @@ function applyMapping() {
 
 // ---- Settings ------------------------------------------------------------
 function openSettings() {
-  fetch('/settings').then(r=>r.json()).then(d => {
-    document.getElementById('cfg-url').value        = d.allure_url || '';
-    document.getElementById('cfg-token').value      = d.allure_token ? '********' : '';
-    document.getElementById('cfg-project-id').value = d.project_id  || '';
-    setAuthStatus('idle', 'Not verified');
-  });
+  const c = localCreds();
+  document.getElementById('cfg-url').value        = c.allure_url   || '';
+  document.getElementById('cfg-token').value      = c.allure_token ? '********' : '';
+  document.getElementById('cfg-project-id').value = c.project_id   || '';
+  setAuthStatus('idle', 'Not verified');
+  // Also pull server-side env vars (Vercel dashboard vars) if nothing in localStorage
+  if (!c.allure_url) {
+    fetch('/settings').then(r=>r.json()).then(d => {
+      if (d.allure_url)  document.getElementById('cfg-url').value        = d.allure_url;
+      if (d.allure_token) document.getElementById('cfg-token').value     = '********';
+      if (d.project_id)  document.getElementById('cfg-project-id').value = d.project_id;
+    }).catch(()=>{});
+  }
   document.getElementById('settings-panel').classList.add('open');
 }
 function closeSettings() {
@@ -572,30 +589,30 @@ function saveSettings() {
   const url   = document.getElementById('cfg-url').value.trim();
   const token = document.getElementById('cfg-token').value.trim();
   const pid   = document.getElementById('cfg-project-id').value.trim();
+  // Always persist to localStorage first (works on any hosting including Vercel)
+  if (url)                            localStorage.setItem('allure_url', url);
+  if (token && token !== '********')  localStorage.setItem('allure_token', token);
+  if (pid)                            localStorage.setItem('allure_project_id', pid);
+  // Also try server-side persist (works locally, silently ignored on read-only FS)
   fetch('/settings', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({allure_url: url, allure_token: token, project_id: pid})
-  }).then(r=>r.json()).then(d => {
-    if (d.ok) { closeSettings(); loadConfigFolder(); checkConnection(); }
-    else alert('Save failed: ' + (d.error || 'unknown'));
+  }).catch(()=>{}).finally(() => {
+    closeSettings(); loadConfigFolder(); checkConnection();
   });
 }
 
 function clearCredentials() {
-  if (!confirm('This will erase your saved Allure URL and API token from env.env. Continue?')) return;
-  fetch('/settings/clear', {method:'POST'})
-    .then(r=>r.json())
-    .then(d => {
-      if (d.ok) {
-        document.getElementById('cfg-url').value   = '';
-        document.getElementById('cfg-token').value = '';
-        setAuthStatus('idle', 'Credentials cleared');
-        closeSettings();
-        checkConnection();
-      } else {
-        alert('Failed: ' + (d.error || 'unknown'));
-      }
-    });
+  if (!confirm('This will erase your saved Allure URL and API token. Continue?')) return;
+  localStorage.removeItem('allure_url');
+  localStorage.removeItem('allure_token');
+  localStorage.removeItem('allure_project_id');
+  fetch('/settings/clear', {method:'POST'}).catch(()=>{});
+  document.getElementById('cfg-url').value   = '';
+  document.getElementById('cfg-token').value = '';
+  setAuthStatus('idle', 'Credentials cleared');
+  closeSettings();
+  checkConnection();
 }
 
 // ---- Folder form ---------------------------------------------------------
@@ -657,7 +674,12 @@ document.getElementById('file-input').addEventListener('change', e => {
 
 function handleFile(file) {
   show('alert-parse'); hide('alert-parse-err');
-  const fd = new FormData(); fd.append('file', file);
+  const c = localCreds();
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('allure_url',   c.allure_url);
+  fd.append('allure_token', c.allure_token);
+  fd.append('project_id',   c.project_id);
   fetch('/parse', {method:'POST', body:fd})
     .then(r=>r.json())
     .then(data => {
@@ -680,7 +702,7 @@ function recheckDupes() {
   btn.disabled = true; btn.textContent = 'Checking...';
   clearDupeWarning(); showInfo('alert-recheck');
   fetch('/check-dupes', {method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({names: parsedRows.map(r=>r.name)})})
+    body: JSON.stringify({names: parsedRows.map(r=>r.name), ...localCreds()})})
   .then(r=>r.json())
   .then(d => {
     hideEl('alert-recheck'); btn.disabled=false; btn.textContent='Re-check duplicates';
@@ -744,7 +766,7 @@ function runAction(mode) {
   document.getElementById('card-log').scrollIntoView({behavior:'smooth',block:'start'});
 
   fetch('/import', {method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({rows: parsedRows, dry_run: isDry, folder: getFolderFromInputs()})})
+    body: JSON.stringify({rows: parsedRows, dry_run: isDry, folder: getFolderFromInputs(), ...localCreds()})})
   .then(r=>r.json())
   .then(data => {
     btn.disabled=false;
@@ -850,6 +872,18 @@ def allure_creds(cfg):
     return url, token
 
 
+def resolve_creds(data, cfg):
+    """Prefer credentials from request body (localStorage) over env/config file."""
+    url, token = allure_creds(cfg)
+    req_url    = (data.get("allure_url")   or "").strip().rstrip("/")
+    req_token  = (data.get("allure_token") or "").strip()
+    pid_str    = (data.get("project_id")   or "").strip()
+    if req_url:                               url   = req_url
+    if req_token and req_token != "********": token = req_token
+    pid = int(pid_str) if pid_str and pid_str.isdigit() else cfg.get("project", {}).get("id", 0)
+    return url, token, pid
+
+
 def safe_jwt(url, token):
     resp = req.post(
         f"{url}/api/uaa/oauth/token",
@@ -925,18 +959,25 @@ def settings_save():
     allure_token = data.get("allure_token", "").strip()
     project_id   = data.get("project_id", "").strip()
 
+    # Update in-memory env vars immediately (works even on read-only FS)
+    if allure_url:
+        os.environ["ALLURE_URL"] = allure_url
+    if allure_token and allure_token != "********":
+        os.environ["ALLURE_TOKEN"] = allure_token
+
+    # Try to persist to disk (works locally, silently skipped on read-only FS like Vercel)
     try:
-        # Save token + URL to env.env
         if not os.path.exists(ENV_PATH):
             open(ENV_PATH, "w").close()
         if allure_url:
             set_key(ENV_PATH, "ALLURE_URL", allure_url)
         if allure_token and allure_token != "********":
             set_key(ENV_PATH, "ALLURE_TOKEN", allure_token)
-        # Reload env
         load_dotenv(ENV_PATH, override=True)
+    except OSError:
+        pass
 
-        # Update project ID in config.yml
+    try:
         if project_id:
             import yaml
             cfg_path = CONFIG_PATH
@@ -948,23 +989,23 @@ def settings_save():
             cfg.setdefault("project", {})["id"] = int(project_id)
             with open(cfg_path, "w", encoding="utf-8") as f:
                 yaml.dump(cfg, f, default_flow_style=False, allow_unicode=True)
+    except OSError:
+        pass
 
-        return jsonify({"ok": True})
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+    return jsonify({"ok": True})
 
 
 @app.route("/settings/clear", methods=["POST"])
 def settings_clear():
+    os.environ.pop("ALLURE_URL", None)
+    os.environ.pop("ALLURE_TOKEN", None)
     try:
         if os.path.exists(ENV_PATH):
             set_key(ENV_PATH, "ALLURE_URL", "")
             set_key(ENV_PATH, "ALLURE_TOKEN", "")
-        os.environ.pop("ALLURE_URL", None)
-        os.environ.pop("ALLURE_TOKEN", None)
-        return jsonify({"ok": True})
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+    except OSError:
+        pass
+    return jsonify({"ok": True})
 
 
 @app.route("/auth-test", methods=["POST"])
@@ -1057,11 +1098,11 @@ def parse_endpoint():
     rows = parse_rows(raw_rows, cfg)
     duplicates = []
     try:
-        url, token = allure_creds(cfg)
+        url, token, pid = resolve_creds(request.form, cfg)
         if url and token:
             jwt      = safe_jwt(url, token)
             hdrs     = get_headers(jwt)
-            existing = fetch_existing_names(url, cfg["project"]["id"], hdrs)
+            existing = fetch_existing_names(url, pid, hdrs)
             duplicates = [r["name"] for r in rows if r["name"].lower() in existing]
     except Exception:
         pass
@@ -1105,11 +1146,11 @@ def parse_with_mapping_endpoint():
 
     duplicates = []
     try:
-        url, token = allure_creds(cfg)
+        url, token, pid = resolve_creds(body, cfg)
         if url and token:
             jwt      = safe_jwt(url, token)
             hdrs     = get_headers(jwt)
-            existing = fetch_existing_names(url, cfg["project"]["id"], hdrs)
+            existing = fetch_existing_names(url, pid, hdrs)
             duplicates = [r["name"] for r in out if r["name"].lower() in existing]
     except Exception:
         pass
@@ -1119,15 +1160,16 @@ def parse_with_mapping_endpoint():
 
 @app.route("/check-dupes", methods=["POST"])
 def check_dupes_endpoint():
-    names = (request.get_json() or {}).get("names", [])
+    body  = request.get_json() or {}
+    names = body.get("names", [])
     try:
         cfg = load_config(CONFIG_PATH)
-        url, token = allure_creds(cfg)
+        url, token, pid = resolve_creds(body, cfg)
         if not url or not token:
             return jsonify({"error": "Missing ALLURE_URL or token"}), 500
         jwt      = safe_jwt(url, token)
         headers  = get_headers(jwt)
-        existing = fetch_existing_names(url, cfg["project"]["id"], headers)
+        existing = fetch_existing_names(url, pid, headers)
         return jsonify({"duplicates": [n for n in names if n.lower() in existing]})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -1147,11 +1189,10 @@ def import_endpoint():
     except SystemExit:
         return jsonify({"error": "config.yml not found"}), 500
 
-    url, token = allure_creds(cfg)
+    url, token, project_id = resolve_creds(body, cfg)
     if not url or not token:
         return jsonify({"error": "Missing ALLURE_URL or token - open Settings to configure"}), 500
 
-    project_id    = cfg["project"]["id"]
     custom_fields = build_custom_fields_for_folder(cfg, folder)
     log           = []
 
