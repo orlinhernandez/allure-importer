@@ -107,6 +107,12 @@ header h1{font-size:15px;font-weight:600;color:#f1f5f9;flex:1}
 .folder-grid .fg.narrow{flex:0 0 110px}
 .folder-status{margin-top:10px;font-size:12px;color:#94a3b8}
 .folder-status.set{color:#4ade80}
+.verify-bar{display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap}
+.vr{font-size:11px;padding:5px 10px;border-radius:6px;display:none;align-items:center;gap:6px}
+.vr.show{display:inline-flex}
+.vr-ok  {background:#0a2218;border:1px solid #14532d;color:#4ade80}
+.vr-warn{background:#1c1a0a;border:1px solid #713f12;color:#fbbf24}
+.vr-fail{background:#200a0a;border:1px solid #7f1d1d;color:#f87171}
 
 /* ---- alerts ---- */
 .alert{display:flex;align-items:flex-start;gap:10px;padding:11px 14px;border-radius:7px;font-size:12px;margin-top:10px}
@@ -373,6 +379,10 @@ td{padding:9px 12px;vertical-align:top;color:#cbd5e1}
             <label>Story ID <span style="color:#3f4568;font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></label>
             <input class="field-input" id="input-story-id" placeholder="e.g. 5163"/>
           </div>
+        </div>
+        <div class="verify-bar">
+          <button class="btn btn-ghost btn-sm" id="btn-verify-folder" onclick="verifyFolder()">Verify folder</button>
+          <span id="verify-result" class="vr"></span>
         </div>
         <div class="folder-status" id="folder-status">Will use config.yml default if left empty</div>
       </div>
@@ -658,6 +668,53 @@ function updateFolderStatus() {
     el.textContent = 'Will import into: ' + path + '  (ID ' + f.featureId + ')';
     el.className = 'folder-status set';
   }
+}
+
+// ---- Folder verify -------------------------------------------------------
+function verifyFolder() {
+  const fid   = document.getElementById('input-feature-id').value.trim();
+  const fname = document.getElementById('input-feature-name').value.trim();
+  const sid   = document.getElementById('input-story-id').value.trim();
+  const sname = document.getElementById('input-story-name').value.trim();
+  if (!fid) { setVerify('warn', 'Enter a Feature ID first'); return; }
+  const btn = document.getElementById('btn-verify-folder');
+  btn.disabled = true; btn.textContent = 'Verifying...';
+  setVerify('', '');
+  fetch('/verify-folder', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      feature_id:   parseInt(fid, 10),
+      feature_name: fname,
+      story_id:     sid   ? parseInt(sid, 10) : null,
+      story_name:   sname || null,
+      ...localCreds()
+    })
+  })
+  .then(r => r.json())
+  .then(d => {
+    btn.disabled = false; btn.textContent = 'Verify folder';
+    if (d.error)   { setVerify('fail', d.error); return; }
+    if (!d.found)  { setVerify('fail', `Feature ID ${fid} not found in Allure — double-check the URL`); return; }
+    let msg = `Feature: "${d.feature_name}"`;
+    let type = 'ok';
+    if (!d.feature_matches) { type = 'warn'; msg += ` (you entered "${fname}")`; }
+    if (d.story_name) {
+      if (d.story_found) {
+        msg += ` / Story: "${d.story_name}"`;
+        if (!d.story_matches) { type = 'warn'; msg += ` (you entered "${sname}")`; }
+      } else {
+        type = 'warn'; msg += ` — Story ID ${sid} not found`;
+      }
+    }
+    setVerify(type, (type === 'ok' ? 'Verified: ' : 'Warning: ') + msg);
+  })
+  .catch(() => { btn.disabled = false; btn.textContent = 'Verify folder'; setVerify('fail', 'Request failed'); });
+}
+function setVerify(type, msg) {
+  const el = document.getElementById('verify-result');
+  el.className = 'vr' + (type ? ' vr-' + type + ' show' : '');
+  el.textContent = msg;
 }
 
 // ---- Drag & drop ---------------------------------------------------------
@@ -1006,6 +1063,90 @@ def settings_clear():
     except OSError:
         pass
     return jsonify({"ok": True})
+
+
+@app.route("/verify-folder", methods=["POST"])
+def verify_folder():
+    body         = request.get_json() or {}
+    feature_id   = body.get("feature_id")
+    feature_name = (body.get("feature_name") or "").strip().lower()
+    story_id     = body.get("story_id")
+    story_name   = (body.get("story_name") or "").strip().lower()
+
+    if not feature_id:
+        return jsonify({"error": "feature_id is required"}), 400
+    try:
+        cfg = load_config(CONFIG_PATH)
+    except SystemExit:
+        cfg = {}
+
+    url, token, pid = resolve_creds(body, cfg)
+    if not url or not token:
+        return jsonify({"error": "Not configured — open Settings first"}), 500
+
+    try:
+        jwt  = safe_jwt(url, token)
+        hdrs = get_headers(jwt)
+
+        def lookup_value(value_id):
+            """Try to resolve a custom field value by ID. Returns name or None."""
+            # Approach 1: direct value lookup
+            for endpoint in [
+                f"{url}/api/rs/customfield/value/{value_id}",
+                f"{url}/api/rs/customfield/-2/value/{value_id}",
+            ]:
+                try:
+                    r = req.get(endpoint, headers=hdrs,
+                                params={"projectId": pid}, timeout=8)
+                    if r.ok:
+                        data = r.json()
+                        name = data.get("name") if isinstance(data, dict) else None
+                        if name:
+                            return name
+                except Exception:
+                    pass
+
+            # Approach 2: list all values and search
+            for endpoint in [
+                f"{url}/api/rs/customfield/-2/value",
+                f"{url}/api/rs/customfield/value",
+            ]:
+                try:
+                    r = req.get(endpoint, headers=hdrs,
+                                params={"projectId": pid, "size": 500}, timeout=8)
+                    if r.ok:
+                        data  = r.json()
+                        items = data if isinstance(data, list) else data.get("content", [])
+                        hit   = next((v for v in items
+                                      if str(v.get("id")) == str(value_id)), None)
+                        if hit:
+                            return hit.get("name")
+                except Exception:
+                    pass
+            return None
+
+        fname_actual = lookup_value(feature_id)
+        if fname_actual is None:
+            return jsonify({"found": False})
+
+        result = {
+            "found":          True,
+            "feature_name":   fname_actual,
+            "feature_matches": not feature_name or fname_actual.lower() == feature_name,
+        }
+
+        if story_id:
+            sname_actual = lookup_value(story_id)
+            result["story_found"]   = sname_actual is not None
+            result["story_name"]    = sname_actual
+            result["story_matches"] = not story_name or (
+                sname_actual and sname_actual.lower() == story_name
+            )
+
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/auth-test", methods=["POST"])
