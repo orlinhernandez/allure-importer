@@ -1089,7 +1089,8 @@ def verify_folder():
         hdrs = get_headers(jwt)
 
         def lookup_value(value_id):
-            """Resolve a custom field value by customFieldValueId using /api/rs/cfv."""
+            """Resolve a custom field value by customFieldValueId using /api/rs/cfv.
+            The response is a nested tree: each node has children.content with more nodes."""
             try:
                 r = req.get(
                     f"{url}/api/rs/cfv",
@@ -1097,16 +1098,35 @@ def verify_folder():
                     params={"projectId": pid, "v2": "true", "size": 2000},
                     timeout=10,
                 )
-                if r.ok:
-                    data  = r.json()
-                    items = data if isinstance(data, list) else data.get("content", [])
-                    hit   = next(
-                        (v for v in items
-                         if str(v.get("customFieldValueId")) == str(value_id)),
-                        None,
-                    )
-                    if hit:
-                        return hit.get("name")
+                if not r.ok:
+                    return None
+                data = r.json()
+
+                def search(node):
+                    """Recursively search a node or list for customFieldValueId."""
+                    if isinstance(node, list):
+                        for item in node:
+                            found = search(item)
+                            if found:
+                                return found
+                    elif isinstance(node, dict):
+                        if str(node.get("customFieldValueId")) == str(value_id):
+                            return node.get("name")
+                        children = node.get("children", {})
+                        content  = (children.get("content", [])
+                                    if isinstance(children, dict) else children)
+                        for child in content:
+                            found = search(child)
+                            if found:
+                                return found
+                    return None
+
+                # Handle flat list, paginated {content:[...]}, or single root node
+                if isinstance(data, list):
+                    return search(data)
+                content = data.get("content")
+                return search(content if content is not None else data)
+
             except Exception:
                 pass
             return None
