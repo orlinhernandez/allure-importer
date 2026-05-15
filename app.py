@@ -1089,40 +1089,26 @@ def verify_folder():
         hdrs = get_headers(jwt)
 
         def lookup_value(value_id):
-            """Try to resolve a custom field value by ID. Returns name or None."""
-            # Approach 1: direct value lookup
-            for endpoint in [
-                f"{url}/api/rs/customfield/value/{value_id}",
-                f"{url}/api/rs/customfield/-2/value/{value_id}",
-            ]:
-                try:
-                    r = req.get(endpoint, headers=hdrs,
-                                params={"projectId": pid}, timeout=8)
-                    if r.ok:
-                        data = r.json()
-                        name = data.get("name") if isinstance(data, dict) else None
-                        if name:
-                            return name
-                except Exception:
-                    pass
-
-            # Approach 2: list all values and search
-            for endpoint in [
-                f"{url}/api/rs/customfield/-2/value",
-                f"{url}/api/rs/customfield/value",
-            ]:
-                try:
-                    r = req.get(endpoint, headers=hdrs,
-                                params={"projectId": pid, "size": 500}, timeout=8)
-                    if r.ok:
-                        data  = r.json()
-                        items = data if isinstance(data, list) else data.get("content", [])
-                        hit   = next((v for v in items
-                                      if str(v.get("id")) == str(value_id)), None)
-                        if hit:
-                            return hit.get("name")
-                except Exception:
-                    pass
+            """Resolve a custom field value by customFieldValueId using /api/rs/cfv."""
+            try:
+                r = req.get(
+                    f"{url}/api/rs/cfv",
+                    headers=hdrs,
+                    params={"projectId": pid, "v2": "true", "size": 2000},
+                    timeout=10,
+                )
+                if r.ok:
+                    data  = r.json()
+                    items = data if isinstance(data, list) else data.get("content", [])
+                    hit   = next(
+                        (v for v in items
+                         if str(v.get("customFieldValueId")) == str(value_id)),
+                        None,
+                    )
+                    if hit:
+                        return hit.get("name")
+            except Exception:
+                pass
             return None
 
         fname_actual = lookup_value(feature_id)
